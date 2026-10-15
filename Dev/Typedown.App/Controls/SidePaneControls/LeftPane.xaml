@@ -29,6 +29,19 @@
             <muxc:NavigationView.Resources>
                 <SolidColorBrush x:Key="NavigationViewContentBackground" Color="Transparent"/>
                 <SolidColorBrush x:Key="NavigationViewContentGridBorderBrush" Color="{ThemeResource CardStrokeColorDefault}"/>
+
+                <!--
+                    Top-mode NavigationView items paint a "subtle fill" rectangle on hover /
+                    press, which reads as a stray hyperlink-style highlight next to the tab
+                    labels. Selection is already shown by the accent underline, so drop the
+                    hover and pressed fills (the app ships no HyperlinkButton here).
+                    Overriding the SelectorBar keys as well keeps the tabs flat on WinUI
+                    builds that host the top items in a SelectorBar.
+                -->
+                <SolidColorBrush x:Key="TopNavigationViewItemBackgroundPointerOver" Color="Transparent"/>
+                <SolidColorBrush x:Key="TopNavigationViewItemBackgroundPressed" Color="Transparent"/>
+                <SolidColorBrush x:Key="SelectorBarItemBackgroundPointerOver" Color="Transparent"/>
+                <SolidColorBrush x:Key="SelectorBarItemBackgroundPressed" Color="Transparent"/>
             </muxc:NavigationView.Resources>
             <!--<muxc:NavigationView.PaneFooter>
                 <Button Width="32" Height="32" x:Name="SeatchButton" Click="OnSearchButtonClick" Margin="0,0,4,0" Style="{ThemeResource EllipsisIconButtonStyle}" local:ToolTip.TextResource="Search">

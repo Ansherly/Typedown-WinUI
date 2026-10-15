@@ -8,9 +8,9 @@
   IgnorableNamespaces="uap rescap desktop">
 
   <Identity
-    Name="Typedown.Arm64"
+    Name="TypedownWinUI"
     Publisher="CN=Typedown"
-    Version="1.2.19.0" />
+    Version="1.2.21.0" />
 
   <Properties>
     <DisplayName>Typedown</DisplayName>

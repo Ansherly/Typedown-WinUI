@@ -12,7 +12,7 @@
     <EnableMsixTooling>true</EnableMsixTooling>
     <Nullable>disable</Nullable>
     <LangVersion>latest</LangVersion>
-    <Version>1.2.19</Version>
+    <Version>1.2.21</Version>
     <AssemblyName>Typedown</AssemblyName>
     <!-- Chinese is the default UI language (resources live in Resources\Strings\zh-Hans). -->
     <DefaultLanguage>zh-CN</DefaultLanguage>

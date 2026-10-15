@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <root>
   <!-- 
     Microsoft ResX Schema 
@@ -121,9 +121,9 @@
     <value>Ynglŷn â Application</value>
     <comment>关于/关于应用程序</comment>
   </data>
-  <data name="About.AppStorePage" xml:space="preserve">
-    <value>Tudalen Siop Microsoft</value>
-    <comment>关于/应用商店页面</comment>
+  <data name="About.GithubRepository" xml:space="preserve">
+    <value>GitHub</value>
+    <comment>About/GitHub repository</comment>
   </data>
   <data name="About.BasedOnOpenSourceSoftware" xml:space="preserve">
     <value>Yn seiliedig ar feddalwedd ffynhonnell agored</value>
@@ -132,22 +132,6 @@
   <data name="About.Introduction" xml:space="preserve">
     <value>Golygydd Markdown WYSIWYG</value>
     <comment>关于/一款所见即所得 Markdown 编辑器</comment>
-  </data>
-  <data name="About.SendFeedback" xml:space="preserve">
-    <value>Anfon Adborth</value>
-    <comment>关于/发送反馈</comment>
-  </data>
-  <data name="About.SendFeedbackDialog.Contact.Header" xml:space="preserve">
-    <value>Cyswllt</value>
-    <comment>关于/联系方式</comment>
-  </data>
-  <data name="About.SendFeedbackDialog.Contact.Placeholder" xml:space="preserve">
-    <value>E-bost</value>
-    <comment>关于/Email</comment>
-  </data>
-  <data name="About.SendFeedbackDialog.Content.Placeholder" xml:space="preserve">
-    <value>Rydym yn cymryd eich adborth o ddifrif</value>
-    <comment>关于/我们会非常重视您填写的内容</comment>
   </data>
   <data name="About.Title" xml:space="preserve">
     <value>Ynghylch</value>

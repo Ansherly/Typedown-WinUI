@@ -44,6 +44,8 @@
 | **本地化** | 默认语言改为**中文**（`zh-CN`，资源在 `Resources/Strings/zh-Hans`），保留全部 75 种语言 |
 | **包体精简** | 剔除 Windows App SDK 携带的 **DirectML / onnxruntime** 等 AI/ML 载荷，**55.6 MB → 39.3 MB（-29%）** |
 | **修复** | 上游构建阻塞（Windows SDK 路径硬编码、`TargetPlatformVersion` 缺失）、`LocaleString` 返回 null 导致 XAML 解析崩溃、`WebView2` 放进 `Canvas` 导致 0×0 不渲染 |
+| **隐私** | 移除全部指向第三方服务器（上游作者的 `typedown.ownbox.cn`）的上报：「关于」页的「发送反馈」对话框整体删除，崩溃/前端异常改为写本地日志 |
+| **包身份** | `Package.appxmanifest` 的 `Identity Name`：`Typedown.Arm64` → **`TypedownWinUI`**；「关于」页的商店链接改为 GitHub 仓库，「基于开源软件」改为弹出第三方组件与许可清单 |
 
 ### 关于包体精简的说明
 
@@ -164,8 +166,13 @@ MSIX：39.3 MB，签名 Valid，464 条目，AI/ML 0 项
 |---|---|---|
 | **点击「新建窗口」后再关闭该窗口，整个程序崩溃** | `MainWindow` 订阅了 `RootControl.LayoutUpdated` 用于更新标题栏拖拽区域，但关闭时未退订。窗口销毁后该事件仍会触发一次，此时读取 `Window.Content` 抛出 `COMException 0x800710DD`（*The WinUI Desktop Window object has already been closed*）；事件处理器内的异常无人接管，导致进程终止 | 事件改用命名处理器并在 `OnClosed` 中退订，同时以 `isClosed` 标志让 `UpdateDragRegions()` 在拆卸阶段直接返回 |
 | **打开 / 打开最近 / 打开文件夹 / 保存 / 另存为 / 导入 / 导出 全部无反应** | 两处叠加：① 转换 `picker as object as IInitializeWithWindow` 返回 null，抛出 `NullReferenceException`；② `AppViewModel.MainWindow`（选择器的宿主窗口句柄）从未被赋值，始终为 `IntPtr.Zero` | ① 改用 Windows SDK 投影自带的 `WinRT.Interop.InitializeWithWindow.Initialize()`；② 在 `RootControl.Loaded` 中把本窗口 HWND 发布给 ViewModel |
+| **打开文件 → 进设置页 → 返回，文档消失、编辑器区变成白板** | `MarkdownEditor` 是按窗口注册的单例，`EditorContainer` 每次回到主页只是把**同一个实例**重新挂到可视树上（WebView2 及其页面文档都还活着）。而 `OnLoaded` 会无条件把 `Opacity` 置 0，接着因 `webView != null` 提前返回 —— 前端的 `ContentLoaded` 每个 `CoreWebView2` 只上报一次，`Opacity` 再也回不到 1，编辑器于是永久不可见（DOM 还在、盲打也能进去字符数，但屏幕上一片白） | 把「重置加载状态」移到首次初始化分支之后：重新挂载且已加载完成时只恢复 `Opacity = 1`，不再重置 `IsEditorLoaded` |
+| **任何自己实现的弹窗（对话框）都打不开** | `AppContentDialog` 把对话框当子元素手工挂到窗口根面板上，并要求 `XamlRoot.Content` **是 `Grid`**。WPF 外壳的窗口根面板确实是 `Grid`，但 WinUI 3 外壳的窗口内容是 `RootControl`（`UserControl`），该前置条件恒为真 → **每一个用它的对话框一调用就抛 `InvalidOperationException`**（`startup.log` 的 `UNHANDLED` 栈顶即 `AppContentDialog.ShowAsync`）。宿主修好后还有第二处：对话框被加进根 Grid 的**第一个单元格**，而 `RootControl` 的根 Grid 是「标题栏(Auto) + 内容(*)」两行，于是对话框长在标题栏那一行里、把整页内容往下顶 | `GetHostPanel()` 先判断 `XamlRoot.Content` 是否为 `Panel`，不是就沿可视树向下取第一个 `Panel`；添加时用 `Grid.SetRowSpan/SetColumnSpan` 让对话框跨满宿主的全部行列 |
 
-> 顺带移除了一条会把选择器错误上报到 `typedown.ownbox.cn/report` 的遥测调用，改为写入本地日志。
+> **不再有任何指向第三方服务器的上报**：「关于」页的「发送反馈」按钮与它的上报对话框已整体删除，
+> `Log.Report` 也不再 POST 到上游作者的 `typedown.ownbox.cn/report`，改为写本地
+> `%LOCALAPPDATA%\Typedown\startup.log`（选择器错误、`MarkdownEditor` 初始化失败、WebView
+> 未处理异常都走这里——否则前端启动失败在本地完全没有痕迹）。详见 `DEPLOY-x64.md` §8。
 
 ## 已知限制
 

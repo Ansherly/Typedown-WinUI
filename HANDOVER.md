@@ -222,6 +222,57 @@ COMException 0x800710DD: The WinUI Desktop Window object has already been closed
 
 **顺带**：移除了会把选择器错误**上报到 `typedown.ownbox.cn/report`** 的遥测调用，改为本地日志。
 
+### Bug 3 — 打开文件后进设置页再返回，文档消失、编辑器变白板
+
+**根因**：`MarkdownEditor` 是按窗口注册的**单例**（`AddScoped<IMarkdownEditor, MarkdownEditor>`），
+`EditorContainer` 在页面卸载/重新加载时只是把**同一个实例**从可视树上摘下来再挂回去；
+此时 WebView2 与其前端文档都还活着（实测 `document.readyState=complete`、DOM 内容完整）。
+但 `MarkdownEditor.OnLoaded` 开头会无条件执行：
+
+```csharp
+Opacity = 0;
+IsEditorLoaded = false;
+IsEditorLoadFailed = false;
+
+if (webView != null)
+    return;          // ← 重新挂载时从这里就返回了
+```
+
+而 `Opacity` 只由前端的 `ContentLoaded` 回调恢复，**每个 `CoreWebView2` 只会回调一次**。
+于是重新挂载后 `Opacity` 永远是 0：文档还在、点进去盲打字符数也会变，但屏幕上一片白。
+
+**修复**：把「重置加载状态」移到提前返回之后——重新挂载且已加载完成时，只把 `Opacity` 恢复为 1。
+
+**教训**：WinUI 3 里「控件重新进入可视树」≠「控件重新初始化」。
+`Loaded` 里的一次性状态重置必须先区分**首次初始化**与**重新挂载**；依赖一次性握手回调
+（`ContentLoaded`）恢复的状态，尤其不能在 `Loaded` 里被清掉。
+
+> 本次同时**彻底移除了第三方上报**：`Log.Report` 不再 POST 到上游作者的 `typedown.ownbox.cn`，
+> 改为写本地 `startup.log`；「关于」页的「发送反馈」按钮与 `FeedbackDialog` 一并删除。
+> 包身份同时由 `Typedown.Arm64` 改名为 **`TypedownWinUI`**（`Package.appxmanifest` 的
+> `Identity Name`），因此 PackageFullName / AUMID 都变了，旧包需要卸载、旧包数据不迁移。
+> 以上改动已构建并安装为 **1.2.21**（`AppPackages\Typedown.App_1.2.21.0_x64_Test`，
+> 安装后为 `TypedownWinUI_1.2.21.0_x64__8jrz9ffqrj418`）。
+
+### Bug 4 — 任何对话框都打不开；修好宿主后又被塞进标题栏那一行
+
+**根因（两处，都是移植换了外壳的后果）**：
+
+1. `AppContentDialog.ShowAsync()` 要求 `XamlRoot.Content` **是 `Grid`**——它把对话框当子元素手工挂到窗口根面板上。
+   WPF 外壳的窗口根面板确实是 `Grid`，但 WinUI 3 外壳的 `MainWindow.Content` 是 `RootControl`
+   （`UserControl`），这个前置判断恒为真，于是**每一个用它的对话框都直接抛异常**——
+   `startup.log` 里是 `UNHANDLED: System.InvalidOperationException`，栈顶 `AppContentDialog.ShowAsync`。
+2. 宿主修好之后，对话框又被加进根 Grid 的**第一个单元格**。`RootControl` 的根 Grid 是
+   「标题栏(Auto) + 内容(*)」两行，于是对话框长在标题栏那一行里，还把整页内容往下顶。
+
+**修复**：`GetHostPanel()` 先看 `XamlRoot.Content` 是否为 `Panel`，不是就沿可视树往下找第一个 `Panel`；
+添加时用 `Grid.SetRowSpan/SetColumnSpan` 跨满宿主的全部行列（`StretchAcrossHost()`）。
+
+**教训**：手工 hosting 的浮层要同时确认两件事——宿主**存在**，以及对话框在宿主里的**位置与跨度**是对的。
+换了外壳之后，「根就是 Grid、而且只有一个单元格」这类假设会全部失效。
+
+> 「关于」页的第三方组件清单就是用这种对话框呈现的（14 项两列，`确定` 按钮可见可关闭）。
+
 ### 其他已修的坑（更早阶段）
 
 | 现象 | 根因 | 修复 |

@@ -258,15 +258,72 @@ namespace Typedown.Core.Controls
 
         public void Hide()
         {
-            if (XamlRoot.Content is Grid grid && IsLoaded)
-                grid.Children.Remove(this);
+            if (hostPanel != null && IsLoaded)
+                hostPanel.Children.Remove(this);
         }
+
+        /// <summary>
+        /// The dialog is hosted by hand: it is added as a child of a panel that fills the window.
+        /// In the WPF shell that panel was <c>XamlRoot.Content</c> itself, but the WinUI 3 shell
+        /// puts a UserControl (<c>RootControl</c>) there, so look one level down for the panel
+        /// instead of throwing <see cref="InvalidOperationException"/> for every dialog.
+        /// </summary>
+        private static Panel GetHostPanel(XamlRoot xamlRoot)
+        {
+            if (xamlRoot?.Content is Panel panel)
+                return panel;
+
+            return FindFirstPanel(xamlRoot?.Content as DependencyObject);
+        }
+
+        /// <summary>
+        /// A Grid host (the app's root grid) is split into a caption row and a content row. A child
+        /// without attached properties lands in the first cell, which would grow the caption's Auto
+        /// row and push the whole UI down instead of overlaying it — so span the dialog over every
+        /// row and column of the host.
+        /// </summary>
+        private void StretchAcrossHost(Panel host)
+        {
+            if (host is not Grid hostGrid)
+                return;
+
+            Grid.SetRow(this, 0);
+            Grid.SetRowSpan(this, Math.Max(1, hostGrid.RowDefinitions.Count));
+            Grid.SetColumn(this, 0);
+            Grid.SetColumnSpan(this, Math.Max(1, hostGrid.ColumnDefinitions.Count));
+        }
+
+        private static Panel FindFirstPanel(DependencyObject root)
+        {
+            if (root == null)
+                return null;
+
+            var count = VisualTreeHelper.GetChildrenCount(root);
+            for (var i = 0; i < count; i++)
+            {
+                var child = VisualTreeHelper.GetChild(root, i);
+                if (child is Panel panel)
+                    return panel;
+
+                if (FindFirstPanel(child) is Panel nested)
+                    return nested;
+            }
+
+            return null;
+        }
+
+        /// <summary>Panel this dialog was added to, so <see cref="Hide"/> removes it from the same place.</summary>
+        private Panel hostPanel;
 
         private readonly ConditionalWeakTable<XamlRoot, SemaphoreSlim> showSemaphores = new();
 
         public async Task<ContentDialogResult> ShowAsync()
         {
-            if (XamlRoot.Content is not Grid grid || IsLoaded)
+            if (IsLoaded)
+                throw new InvalidOperationException();
+
+            var grid = GetHostPanel(XamlRoot);
+            if (grid == null)
                 throw new InvalidOperationException();
             if (!showSemaphores.TryGetValue(XamlRoot, out var semaphore))
                 showSemaphores.Add(XamlRoot, semaphore = new(1));
@@ -274,6 +331,8 @@ namespace Typedown.Core.Controls
             try
             {
                 result = new();
+                hostPanel = grid;
+                StretchAcrossHost(grid);
                 grid.Children.Add(this);
                 return await result.Task;
             }

@@ -100,7 +100,7 @@ namespace Typedown.Controls
                 if (!reported.Contains(hash))
                 {
                     reported.Add(hash);
-                    Log.Report("WebViewUnhandledException", error);
+                    App.Log("WebViewUnhandledException: " + error);
                 }
             }
             catch
@@ -129,12 +129,23 @@ namespace Typedown.Controls
 
         private async void OnLoaded(object sender, RoutedEventArgs e)
         {
+            // The editor is a per-window singleton: EditorContainer re-parents this same
+            // instance every time MainPage is navigated back to (e.g. returning from the
+            // settings page), so Loaded fires again without a new WebView2. The front-end
+            // reports ContentLoaded exactly once per CoreWebView2, so resetting the load
+            // state here would leave the editor permanently invisible (a blank editor area)
+            // even though the document is still loaded.
+            if (webView != null)
+            {
+                if (IsEditorLoaded)
+                    Opacity = 1;
+
+                return;
+            }
+
             Opacity = 0;
             IsEditorLoaded = false;
             IsEditorLoadFailed = false;
-
-            if (webView != null)
-                return;
 
             try
             {
@@ -166,7 +177,7 @@ namespace Typedown.Controls
             }
             catch (Exception ex)
             {
-                Log.Report("MarkdownEditorInit", ex.ToString());
+                App.Log("MarkdownEditorInit failed: " + ex);
                 IsEditorLoadFailed = true;
             }
         }

@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <root>
   <!-- 
     Microsoft ResX Schema 
@@ -121,9 +121,9 @@
     <value>ብዛዕባ ኣወዓዕላኡ</value>
     <comment>关于/关于应用程序</comment>
   </data>
-  <data name="About.AppStorePage" xml:space="preserve">
-    <value>ገጽ ድኳን Microsoft</value>
-    <comment>关于/应用商店页面</comment>
+  <data name="About.GithubRepository" xml:space="preserve">
+    <value>GitHub</value>
+    <comment>About/GitHub repository</comment>
   </data>
   <data name="About.BasedOnOpenSourceSoftware" xml:space="preserve">
     <value>ኣብ ክፉት ምንጪ ኣብ ዘለዎ ሶፍትዌር እተመስረተ</value>
@@ -132,22 +132,6 @@
   <data name="About.Introduction" xml:space="preserve">
     <value>ዊሲዊግ ማርክዳውን ዚበሃል ኣሰናዳኢ</value>
     <comment>关于/一款所见即所得 Markdown 编辑器</comment>
-  </data>
-  <data name="About.SendFeedback" xml:space="preserve">
-    <value>መልሲ ለኣኽ</value>
-    <comment>关于/发送反馈</comment>
-  </data>
-  <data name="About.SendFeedbackDialog.Contact.Header" xml:space="preserve">
-    <value>ርክብ</value>
-    <comment>关于/联系方式</comment>
-  </data>
-  <data name="About.SendFeedbackDialog.Contact.Placeholder" xml:space="preserve">
-    <value>ኢ-መይል</value>
-    <comment>关于/Email</comment>
-  </data>
-  <data name="About.SendFeedbackDialog.Content.Placeholder" xml:space="preserve">
-    <value>ነቲ እተዋህበካ ርእይቶ ኣርዚንና ኢና እንርእዮ</value>
-    <comment>关于/我们会非常重视您填写的内容</comment>
   </data>
   <data name="About.Title" xml:space="preserve">
     <value>ብዛዕባ</value>
