@@ -1,0 +1,42 @@
+using System.Collections.Generic;
+using Typedown.Core.ViewModels;
+using Windows.Foundation;
+using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Controls;
+
+namespace Typedown.Core.Controls.FloatControls
+{
+    public sealed partial class FrontMenu : MenuFlyout
+    {
+        public AppViewModel ViewModel { get; }
+
+        public FrontMenu(AppViewModel viewModel)
+        {
+            ViewModel = viewModel;
+            InitializeComponent();
+        }
+
+        private void OnClosed(object sender, object e)
+        {
+            ViewModel.MarkdownEditor.PostMessage("FrontMenuClosed", null);
+        }
+
+        public void Open(Rect rect)
+        {
+            BindingDataContext(Items);
+            OverlayInputPassThroughElement = (ViewModel.MarkdownEditor as UIElement).XamlRoot.Content;
+            AreOpenCloseAnimationsEnabled = ViewModel.SettingsViewModel.AnimationEnable;
+            ShowAt(ViewModel.MarkdownEditor.GetDummyRectangle(rect));
+        }
+
+        private void BindingDataContext(IList<MenuFlyoutItemBase> items)
+        {
+            foreach (var item in items)
+            {
+                item.DataContext = ViewModel;
+                if (item is MenuFlyoutSubItem sub)
+                    BindingDataContext(sub.Items);
+            }
+        }
+    }
+}

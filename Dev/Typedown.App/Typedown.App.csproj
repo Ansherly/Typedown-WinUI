@@ -1,0 +1,114 @@
+<Project Sdk="Microsoft.NET.Sdk" TreatAsLocalProperty="UseXamlCompilerExecutable">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
+    <TargetPlatformMinVersion>10.0.19041.0</TargetPlatformMinVersion>
+    <RootNamespace>Typedown</RootNamespace>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <Platforms>x64;ARM64</Platforms>
+    <RuntimeIdentifiers>win-x64;win-arm64</RuntimeIdentifiers>
+    <UseWinUI>true</UseWinUI>
+    <EnableMsixTooling>true</EnableMsixTooling>
+    <Nullable>disable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <Version>1.2.18</Version>
+    <AssemblyName>Typedown</AssemblyName>
+    <!-- Chinese is the default UI language (resources live in Resources\Strings\zh-Hans). -->
+    <DefaultLanguage>zh-CN</DefaultLanguage>
+    <WindowsPackageType>MSIX</WindowsPackageType>
+    <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
+    <ApplicationIcon>Assets\logo.ico</ApplicationIcon>
+    <GenerateAppxPackageOnBuild>false</GenerateAppxPackageOnBuild>
+    <!-- Signing is an explicit step so ordinary builds never fail on a missing cert password. -->
+    <AppxPackageSigningEnabled>false</AppxPackageSigningEnabled>
+    <AppxAutoIncrementPackageRevision>False</AppxAutoIncrementPackageRevision>
+    <AppxBundle>Never</AppxBundle>
+    <AppxPackageDir>$(SolutionDir)AppPackages\</AppxPackageDir>
+    <!-- The XAML compiler emits .xbf into the output tree which the packaging targets
+         also surface, producing benign duplicate-publish entries. -->
+    <ErrorOnDuplicatePublishOutputFiles>false</ErrorOnDuplicatePublishOutputFiles>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!--
+      Deliberately do NOT reference the Microsoft.WindowsAppSDK meta-package: as of 1.8 it
+      hard-depends on Microsoft.WindowsAppSDK.AI / .ML / .Widgets. Referencing only the
+      sub-packages WinUI 3 needs keeps those components out of the framework payload.
+      Versions match what the 1.8.250916003 meta-package resolved to.
+    -->
+    <PackageReference Include="Microsoft.WindowsAppSDK.WinUI" Version="1.8.250906003" />
+    <PackageReference Include="Microsoft.WindowsAppSDK.Foundation" Version="1.8.250906002" />
+    <PackageReference Include="Microsoft.WindowsAppSDK.InteractiveExperiences" Version="1.8.250906004" />
+    <PackageReference Include="Microsoft.WindowsAppSDK.DWrite" Version="1.8.25090401" />
+    <PackageReference Include="Microsoft.WindowsAppSDK.Runtime" Version="1.8.250916003" />
+    <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.26100.4654" />
+    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.3179.45" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+    <PackageReference Include="System.Reactive" Version="5.0.0" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="8.0.1" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="3.1.32" />
+    <PackageReference Include="Microsoft.Bcl.AsyncInterfaces" Version="8.0.0" />
+    <PackageReference Include="PropertyChanged.Fody" Version="4.1.0" PrivateAssets="all" />
+  </ItemGroup>
+
+  <!-- Bundled React/Muya editor front-end (built by Dev\Typedown.Editor -> yarn build). -->
+  <ItemGroup>
+    <Content Include="Resources\Statics\**\*"
+             CopyToOutputDirectory="PreserveNewest"
+             Link="Resources\Statics\%(RecursiveDir)%(Filename)%(Extension)" />
+    <!-- Referenced by the custom caption: ms-appx:///Images/logo.ico -->
+    <Content Include="Images\**\*"
+             CopyToOutputDirectory="PreserveNewest"
+             Link="Images\%(RecursiveDir)%(Filename)%(Extension)" />
+  </ItemGroup>
+
+  <!--
+    Self-contained deployment unpacks Microsoft.WindowsAppRuntime.1.8.msix wholesale, and
+    that framework package embeds the Windows AI / ML runtime (DirectML ~17.6 MB +
+    onnxruntime ~6.6 MB native, plus the Microsoft.Windows.AI.* projections). A Markdown
+    editor never touches any of it, yet it is ~16.5 MB compressed (~29%) of the MSIX.
+
+    The payload reaches the output through the Windows App SDK self-contained targets, which
+    surface it directly rather than through @(None)/@(Content); the framework's own
+    MicrosoftWindowsAppSDKFilesExcluded hook matches full paths, so filenames never hit it.
+    We therefore drop the files from the output and from the unpacked MSIX staging folder
+    once the build has run. Matched by filename so the removal stays surgical, and the
+    .winmd metadata is deliberately kept so WinRT type resolution keeps working.
+  -->
+  <Target Name="ExcludeWindowsAppSdkAiMlPayload"
+          AfterTargets="GetPackagingOutputs;GetCopyToOutputDirectoryItems"
+          BeforeTargets="_ComputeAppxPackagePayload;GenerateAppxPackageOnBuild;PrepareForRun;_CopyFilesToOutputDirectory">
+    <ItemGroup>
+      <!-- The packaged payload is @(PackagingOutputs); the copied files come from @(None). -->
+      <PackagingOutputs Remove="@(PackagingOutputs)"
+            Condition="$([System.String]::Copy('%(Filename)').Equals('DirectML'))
+                    Or $([System.String]::Copy('%(Filename)').Equals('onnxruntime'))
+                    Or $([System.String]::Copy('%(Filename)').Equals('onnxruntime_providers_shared'))
+                    Or $([System.String]::Copy('%(Filename)').StartsWith('Microsoft.Windows.AI'))" />
+      <None Remove="@(None)"
+            Condition="$([System.String]::Copy('%(Filename)').Equals('DirectML'))
+                    Or $([System.String]::Copy('%(Filename)').Equals('onnxruntime'))
+                    Or $([System.String]::Copy('%(Filename)').Equals('onnxruntime_providers_shared'))
+                    Or $([System.String]::Copy('%(Filename)').StartsWith('Microsoft.Windows.AI'))" />
+      <ReferenceCopyLocalPaths Remove="@(ReferenceCopyLocalPaths)"
+            Condition="$([System.String]::Copy('%(Filename)').Equals('DirectML'))
+                    Or $([System.String]::Copy('%(Filename)').Equals('onnxruntime'))
+                    Or $([System.String]::Copy('%(Filename)').Equals('onnxruntime_providers_shared'))
+                    Or $([System.String]::Copy('%(Filename)').StartsWith('Microsoft.Windows.AI'))" />
+    </ItemGroup>
+
+    <!-- Also drop them from the unpacked staging folder so the packager cannot re-read them. -->
+    <ItemGroup>
+      <_AiMlStaging Include="$(MicrosoftWindowsAppSDKMsixContent)DirectML.dll" />
+      <_AiMlStaging Include="$(MicrosoftWindowsAppSDKMsixContent)onnxruntime.dll" />
+      <_AiMlStaging Include="$(MicrosoftWindowsAppSDKMsixContent)onnxruntime_providers_shared.dll" />
+      <_AiMlStaging Include="$(MicrosoftWindowsAppSDKMsixContent)Microsoft.Windows.AI*.dll" />
+      <_AiMlOutDir Include="$(OutDir)DirectML.dll" />
+      <_AiMlOutDir Include="$(OutDir)onnxruntime.dll" />
+      <_AiMlOutDir Include="$(OutDir)onnxruntime_providers_shared.dll" />
+      <_AiMlOutDir Include="$(OutDir)Microsoft.Windows.AI*.dll" />
+    </ItemGroup>
+    <Delete Files="@(_AiMlStaging);@(_AiMlOutDir)" ContinueOnError="true" />
+  </Target>
+</Project>

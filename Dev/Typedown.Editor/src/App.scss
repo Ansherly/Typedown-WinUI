@@ -1,0 +1,13 @@
+body {
+    margin: 0;
+    min-width: 400px;
+}
+
+:root::-webkit-scrollbar {
+    width: 0;
+    display: none;
+}
+
+.CodeMirror-sizer {
+    margin-bottom: 64px !important;
+}

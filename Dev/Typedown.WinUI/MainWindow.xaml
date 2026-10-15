@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Window
+    x:Class="Typedown.MainWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:Typedown"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d">
+
+    <Grid x:Name="RootGrid">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <TextBlock Grid.Row="0"
+                   x:Name="HeaderText"
+                   Margin="12,8"
+                   Text="Typedown (WinUI 3 / ARM64)" />
+
+        <WebView2 Grid.Row="1"
+                  x:Name="EditorView"
+                  HorizontalAlignment="Stretch"
+                  VerticalAlignment="Stretch" />
+
+        <TextBlock Grid.Row="2"
+                   x:Name="StatusText"
+                   Margin="12,8"
+                   Text="porting in progress" />
+    </Grid>
+</Window>
