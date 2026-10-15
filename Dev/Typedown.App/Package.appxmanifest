@@ -10,7 +10,7 @@
   <Identity
     Name="Typedown.Arm64"
     Publisher="CN=Typedown"
-    Version="1.2.18.0" />
+    Version="1.2.19.0" />
 
   <Properties>
     <DisplayName>Typedown</DisplayName>
