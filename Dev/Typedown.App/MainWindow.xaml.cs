@@ -54,6 +54,10 @@ namespace Typedown
 
         private InputNonClientPointerSource nonClientSource;
 
+        private FrameworkElement titleBarRoot;
+
+        private bool isClosed;
+
         private bool dragRegionsLogged;
 
         public MainWindow()
@@ -65,6 +69,11 @@ namespace Typedown
 
             RootControl = new RootControl { DataContext = AppViewModel };
             Content = RootControl;
+
+            // WinUI 3 file pickers must be parented to a window, and the codebase reads the
+            // owner HWND from AppViewModel.MainWindow (the WPF shell set this in its Loaded
+            // handler). The handle only exists once the XAML root is realised.
+            RootControl.Loaded += OnRootLoaded;
 
             InitializeCustomTitleBar();
 
@@ -108,11 +117,15 @@ namespace Typedown
 
                 nonClientSource = InputNonClientPointerSource.GetForWindowId(AppWindow.Id);
 
-                if (Content is FrameworkElement root)
+                // Keep the handlers so they can be detached on close: after the desktop
+                // Window is destroyed, LayoutUpdated still fires once more and reading
+                // Content then throws COMException 0x800710DD, which crashed the process.
+                titleBarRoot = Content as FrameworkElement;
+                if (titleBarRoot != null)
                 {
-                    root.Loaded += (s, e) => UpdateDragRegions();
-                    root.SizeChanged += (s, e) => UpdateDragRegions();
-                    root.LayoutUpdated += (s, e) => UpdateDragRegions();
+                    titleBarRoot.Loaded += OnTitleBarRootLoaded;
+                    titleBarRoot.SizeChanged += OnTitleBarRootSizeChanged;
+                    titleBarRoot.LayoutUpdated += OnTitleBarRootLayoutUpdated;
                 }
 
                 SyncCaptionButtonColors();
@@ -123,6 +136,34 @@ namespace Typedown
             }
         }
 
+        private void OnTitleBarRootLoaded(object sender, RoutedEventArgs e) => UpdateDragRegions();
+
+        private void OnTitleBarRootSizeChanged(object sender, SizeChangedEventArgs e) => UpdateDragRegions();
+
+        private void OnTitleBarRootLayoutUpdated(object sender, object e) => UpdateDragRegions();
+
+        /// <summary>Detaches title-bar handlers so teardown cannot re-enter the closed window.</summary>
+        private void DetachTitleBarHandlers()
+        {
+            if (titleBarRoot == null)
+                return;
+
+            try
+            {
+                titleBarRoot.Loaded -= OnTitleBarRootLoaded;
+                titleBarRoot.SizeChanged -= OnTitleBarRootSizeChanged;
+                titleBarRoot.LayoutUpdated -= OnTitleBarRootLayoutUpdated;
+            }
+            catch
+            {
+                // The element may already be gone.
+            }
+            finally
+            {
+                titleBarRoot = null;
+            }
+        }
+
         /// <summary>
         /// Publishes the caption drag regions. MenuBar's own drag bars are used when they
         /// are realised (compact mode); otherwise the caption strip minus the system
@@ -130,7 +171,9 @@ namespace Typedown
         /// </summary>
         private void UpdateDragRegions()
         {
-            if (nonClientSource == null || Content is not FrameworkElement root)
+            // Touching Window.Content after the desktop Window has been closed throws
+            // COMException 0x800710DD, so bail out as soon as teardown has begun.
+            if (isClosed || nonClientSource == null || Content is not FrameworkElement root)
                 return;
 
             try
@@ -167,7 +210,6 @@ namespace Typedown
                 if (!dragRegionsLogged)
                 {
                     dragRegionsLogged = true;
-                    App.Log($"title bar: {rects.Count} drag region(s), content width={root.ActualWidth:F0}");
                 }
             }
             catch (Exception ex)
@@ -285,6 +327,32 @@ namespace Typedown
             }
         }
 
+        /// <summary>
+        /// Publishes this window's HWND (and XamlRoot) to the view-models. Without this,
+        /// <c>AppViewModel.MainWindow</c> stays <see cref="IntPtr.Zero"/> and every
+        /// FileSavePicker / FileOpenPicker / FolderPicker in the app fails, which is what
+        /// made Open / Open Recent / Open Folder / Save / Save As / Import / Export no-ops.
+        /// </summary>
+        private void OnRootLoaded(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var hwnd = Handle;
+                if (hwnd == default)
+                    return;
+
+                if (AppViewModel != null)
+                {
+                    AppViewModel.MainWindow = hwnd;
+                    AppViewModel.XamlRoot ??= RootControl?.XamlRoot;
+                }
+            }
+            catch (Exception ex)
+            {
+                App.Log("OnRootLoaded failed: " + ex.Message);
+            }
+        }
+
         private void OnActivated(object sender, WindowActivatedEventArgs e)
         {
             try
@@ -304,12 +372,35 @@ namespace Typedown
 
         private void OnClosed(object sender, WindowEventArgs e)
         {
-            OpenWindows.Remove(this);
-            ServiceScope?.Dispose();
-            ServiceScope = null;
-            RootControl = null;
-            Content = null;
-            disposables.Dispose();
+            try
+            {
+                // Mark closed first: any queued layout callback must not touch the window.
+                isClosed = true;
+                DetachTitleBarHandlers();
+                OpenWindows.Remove(this);
+
+                // Let the view-models tear themselves down while the UI is still alive,
+                // then release the scope. AppViewModel.GetInstances() is consulted by the
+                // "last window" logic, so it must still be usable at this point.
+                try
+                {
+                    AppViewModel?.Dispose();
+                }
+                catch (Exception ex)
+                {
+                    App.Log("OnClosed: AppViewModel.Dispose threw " + ex);
+                }
+
+                ServiceScope?.Dispose();
+                ServiceScope = null;
+                RootControl = null;
+                Content = null;
+                disposables.Dispose();
+            }
+            catch (Exception ex)
+            {
+                App.Log("OnClosed FAILED: " + ex);
+            }
         }
 
         /// <summary>

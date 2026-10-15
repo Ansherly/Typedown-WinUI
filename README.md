@@ -156,12 +156,23 @@ MSIX：39.3 MB，签名 Valid，464 条目，AI/ML 0 项
 
 ---
 
+## 已修复的缺陷
+
+移植过程中发现并修复的运行时缺陷（均已实测复现与验证）：
+
+| 缺陷 | 根因 | 修复 |
+|---|---|---|
+| **点击「新建窗口」后再关闭该窗口，整个程序崩溃** | `MainWindow` 订阅了 `RootControl.LayoutUpdated` 用于更新标题栏拖拽区域，但关闭时未退订。窗口销毁后该事件仍会触发一次，此时读取 `Window.Content` 抛出 `COMException 0x800710DD`（*The WinUI Desktop Window object has already been closed*）；事件处理器内的异常无人接管，导致进程终止 | 事件改用命名处理器并在 `OnClosed` 中退订，同时以 `isClosed` 标志让 `UpdateDragRegions()` 在拆卸阶段直接返回 |
+| **打开 / 打开最近 / 打开文件夹 / 保存 / 另存为 / 导入 / 导出 全部无反应** | 两处叠加：① 转换 `picker as object as IInitializeWithWindow` 返回 null，抛出 `NullReferenceException`；② `AppViewModel.MainWindow`（选择器的宿主窗口句柄）从未被赋值，始终为 `IntPtr.Zero` | ① 改用 Windows SDK 投影自带的 `WinRT.Interop.InitializeWithWindow.Initialize()`；② 在 `RootControl.Loaded` 中把本窗口 HWND 发布给 ViewModel |
+
+> 顺带移除了一条会把选择器错误上报到 `typedown.ownbox.cn/report` 的遥测调用，改为写入本地日志。
+
 ## 已知限制
 
 - **拖拽/双击最大化**等标题栏交互是通过 `InputNonClientPointerSource` 注册的，未做自动化测试，
   建议手动验证（含「紧凑模式」下切换到 `MenuBar` 拖拽条的路径）。
-- **未做逐项功能回归**：菜单、设置页、文件对话框、导出等 UI 均已编译并随窗口加载，
-  但只验证到「窗口正常启动、编辑器正确渲染」这一层。
+- **未做逐项功能回归**：菜单、设置页、文件对话框、导出等 UI 均已编译并随窗口加载。
+  已实测确认通过的部分见上文「已实测验证」与「已修复的缺陷」；其余菜单项仍建议手动逐项确认。
 - **不可再显著精简**：`.NET` 的 `PublishTrimmed` 在框架依赖模式下会直接报 `NETSDK1102` 失败；
   强制自包含后裁剪反而使包增大到 53.2 MB，且会因裁掉 `LocaleString` 等反射类型导致
   `XamlParseException` 崩溃。Native AOT 单体 exe 达 78 MB，大于整个 MSIX，且与本项目的
