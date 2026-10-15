@@ -183,6 +183,9 @@ MSIX：39.3 MB，签名 Valid，464 条目，AI/ML 0 项
 
 ## 致谢
 
+> 接手本项目请先阅读 **[HANDOVER.md](./HANDOVER.md)**（交接文档：环境、构建、架构地图、
+> 已修 bug 根因、待办与调试手法）。
+
 特别感谢 **[ZZF / @byxiaozhi](https://github.com/byxiaozhi)** 开发了 Typedown 并以 MIT 许可开放源码。
 本项目复用了其几乎全部业务代码（`Typedown.Core`、编辑器前端、本地化资源等），
 仅在 UI 宿主层与构建配置上做了移植改动。
